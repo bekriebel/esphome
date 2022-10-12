@@ -15,13 +15,13 @@ static const uint16_t SCD30_CMD_GET_FIRMWARE_VERSION = 0xd100;
 static const uint16_t SCD30_CMD_START_CONTINUOUS_MEASUREMENTS = 0x0010;
 static const uint16_t SCD30_CMD_ALTITUDE_COMPENSATION = 0x5102;
 static const uint16_t SCD30_CMD_AUTOMATIC_SELF_CALIBRATION = 0x5306;
+static const uint16_t SCD30_CMD_FORCED_CALIBRATION = 0x5204;
 static const uint16_t SCD30_CMD_GET_DATA_READY_STATUS = 0x0202;
 static const uint16_t SCD30_CMD_READ_MEASUREMENT = 0x0300;
 
 /// Commands for future use
 static const uint16_t SCD30_CMD_STOP_MEASUREMENTS = 0x0104;
 static const uint16_t SCD30_CMD_MEASUREMENT_INTERVAL = 0x4600;
-static const uint16_t SCD30_CMD_FORCED_CALIBRATION = 0x5204;
 static const uint16_t SCD30_CMD_TEMPERATURE_OFFSET = 0x5403;
 static const uint16_t SCD30_CMD_SOFT_RESET = 0xD304;
 
@@ -136,6 +136,7 @@ void SCD30Component::dump_config() {
     ESP_LOGCONFIG(TAG, "  Altitude compensation: %dm", this->altitude_compensation_);
   }
   ESP_LOGCONFIG(TAG, "  Automatic self calibration: %s", ONOFF(this->enable_asc_));
+  ESP_LOGCONFIG(TAG, "  Forced calibration reference: %dppm", this->get_forced_calibration_reference());
   ESP_LOGCONFIG(TAG, "  Ambient pressure compensation: %dmBar", this->ambient_pressure_compensation_);
   ESP_LOGCONFIG(TAG, "  Temperature offset: %.2f °C", this->temperature_offset_);
   ESP_LOGCONFIG(TAG, "  Update interval: %ds", this->update_interval_);
@@ -200,6 +201,28 @@ bool SCD30Component::is_data_ready_() {
     return false;
   }
   return is_data_ready == 1;
+}
+
+bool SCD30Component::force_recalibration_with_reference(uint16_t co2_reference) {
+  ESP_LOGD(TAG, "Performing CO2 force recalibration with reference %dppm.", co2_reference);
+  if (this->write_command(SCD30_CMD_FORCED_CALIBRATION, co2_reference)) {
+    ESP_LOGD(TAG, "Force recalibration complete.");
+    return true;
+  } else {
+    ESP_LOGE(TAG, "Failed to force recalibration with reference.");
+    this->error_code_ = FORCE_RECALIBRATION_FAILED;
+    this->status_set_warning();
+    return false;
+  }
+}
+
+uint16_t SCD30Component::get_forced_calibration_reference() {
+  uint16_t forced_calibration_reference_;
+  // Get current CO2 calibration
+  if (!this->get_register(SCD30_CMD_FORCED_CALIBRATION, forced_calibration_reference_)) {
+    ESP_LOGE(TAG, "Unable to read forced calibration reference.");
+  }
+  return forced_calibration_reference_;
 }
 
 }  // namespace scd30

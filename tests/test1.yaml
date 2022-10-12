@@ -2981,6 +2981,9 @@ button:
   - platform: template
     name: Start calibration
     on_press:
+      - scd30.force_recalibration_with_reference:
+          value: 419
+          id: scd30
       - scd4x.perform_forced_calibration:
           value: 419
           id: scd40
